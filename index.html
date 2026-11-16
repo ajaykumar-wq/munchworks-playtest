@@ -8,7 +8,7 @@
 <meta name="robots" content="noindex">
 <style>
 /* MunchWorks! public playtest (SV-1, design v1.2 D.3). One page, two games: this folder runs
-   Recipe Remix, sort/ runs the archived sort prototype (publish.sh copies this file to both).
+   Recipe Remix. (sort/, the archived sort prototype, was taken down on 2026-11-16 by the owner.)
    Run stats stay in this browser; feedback goes to the owner's Google Form only when the tester
    has passed the age gate and presses Send. No third-party requests before that (system fonts). */
 :root {
@@ -420,6 +420,8 @@ const QUESTIONS = [
     },
   };
   const G = GAMES[GAME];
+  // Owner, 2026-11-16: the sort prototype is taken down; this page is MunchWorks only.
+  const SINGLE_GAME = true;
   const OTHER = GAME === "recipe" ? "sort" : "recipe";
   const BUILD_DIR = GAME === "sort" && !inSortFolder ? "sort/Build/" : "Build/";
   const otherHref = () => {
@@ -550,6 +552,11 @@ const QUESTIONS = [
   const mins = (s) => { const m = Math.floor(s / 60); return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + (m % 60) + "m"; };
 
   function renderNav() {
+    if (SINGLE_GAME) {
+      $("games").hidden = true;
+      $("order").textContent = "Play for about 10 to 15 minutes, then answer the questions.";
+      return;
+    }
     const order = firstAssigned === "recipe" ? ["recipe", "sort"] : ["sort", "recipe"];
     $("games").innerHTML = "";
     order.forEach((key, i) => {
@@ -587,6 +594,7 @@ const QUESTIONS = [
       cells[i - 1].className = "lv" + (r && r.won ? " won" : r && r.fails ? " lost" : "") + (i === current ? " now" : "");
     }
     const o = run.games[OTHER];
+    $("other-run").hidden = SINGLE_GAME;
     $("other-run").textContent = o.reached
       ? `${GAMES[OTHER].name}: reached level ${o.reached}, ${totals(o).won} won, ${mins(o.seconds)} played.`
       : `${GAMES[OTHER].name}: not played yet.`;
@@ -636,7 +644,8 @@ const QUESTIONS = [
     }
     choiceField("playMore");
     const both = run.games.recipe.reached > 0 && run.games.sort.reached > 0;
-    choiceField("preference", { hint: both ? "You've played both games." : "You've played one game so far. Try the other one first if you can." });
+    $("q-preference").hidden = SINGLE_GAME;
+    if (!SINGLE_GAME) choiceField("preference", { hint: both ? "You've played both games." : "You've played one game so far. Try the other one first if you can." });
     choiceField("fun", {});
     choiceField("difficulty");
     for (const k of ["enjoyed", "stuck", "bugs"]) $(k).value = run.draft[k] || "";
@@ -663,8 +672,9 @@ const QUESTIONS = [
 
   function showDone() {
     $("done-title").textContent = `All ${G.levels} levels done!`;
-    const other = run.games[OTHER].reached > 0;
-    $("done-text").textContent = other ? "Thank you for playing both games. Now tell us what you think."
+    const other = SINGLE_GAME || run.games[OTHER].reached > 0;
+    $("done-text").textContent = SINGLE_GAME ? "Thank you for playing! Now tell us what you think."
+      : other ? "Thank you for playing both games. Now tell us what you think."
       : `Thank you! Please play ${GAMES[OTHER].name} too, then answer the questions.`;
     $("done-other").hidden = other;
     $("done-other").href = otherHref();

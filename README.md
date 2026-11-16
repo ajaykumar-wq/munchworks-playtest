@@ -1,5 +1,5 @@
-# MunchWorks! playtest (working title)
+# MunchWorks! playtest
 
-Play: https://ajaykumar-wq.github.io/lunchbox-playtest/
+Play: https://ajaykumar-wq.github.io/munchworks-playtest/
 
-Two prototype games by IICT. See the privacy notice on the page.
+MunchWorks! Recipe Remix by IICT. See the privacy notice on the page.
