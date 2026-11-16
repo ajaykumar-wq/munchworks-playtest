@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MunchWorks! Playtest</title>
+<meta name="description" content="Play two prototype puzzle games by IICT in your browser and tell us which works better.">
+<meta name="robots" content="noindex">
+<style>
+/* MunchWorks! public playtest (SV-1, design v1.2 D.3). One page, two games: this folder runs
+   Recipe Remix, sort/ runs the archived sort prototype (publish.sh copies this file to both).
+   Run stats stay in this browser; feedback goes to the owner's Google Form only when the tester
+   has passed the age gate and presses Send. No third-party requests before that (system fonts). */
+:root {
+  --bg: #f2f4ee;          /* rice paper, leaning green */
+  --surface: #ffffff;
+  --sunken: #e6eae1;
+  --ink: #1b2a24;          /* nori ink */
+  --muted: #56645c;
+  --line: #c9d1c2;
+  --accent: #e3a21a;       /* mustard */
+  --accent-ink: #7a4f00;   /* mustard dark enough for text on light */
+  --plum: #a92a52;         /* fails, warnings */
+  --leaf: #23774a;         /* wins */
+  --on-accent: #241a03;
+  --frame: #1b2a24;
+  --font-display: "Trebuchet MS", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111915; --surface: #18231e; --sunken: #0c120f; --ink: #e6ede8; --muted: #a3b3aa;
+    --line: #2f3e37; --accent: #f2b93f; --accent-ink: #f2b93f; --plum: #f27a9c; --leaf: #63cf91;
+    --on-accent: #241a03; --frame: #050806; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111915; --surface: #18231e; --sunken: #0c120f; --ink: #e6ede8; --muted: #a3b3aa;
+  --line: #2f3e37; --accent: #f2b93f; --accent-ink: #f2b93f; --plum: #f27a9c; --leaf: #63cf91;
+  --on-accent: #241a03; --frame: #050806; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+a { color: var(--accent-ink); }
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 800; }
+h1 .tag { color: var(--accent-ink); }
+h1 small { font-size: 14px; font-weight: 600; color: var(--muted); font-family: var(--font-body); }
+h2 { font-size: 21px; font-weight: 700; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+
+/* Game switcher */
+.games { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.games a {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; font-weight: 600;
+}
+.games a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.games .num { font-family: var(--font-mono); font-size: 12px; opacity: .8; }
+.games a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.order { font-size: 14px; color: var(--muted); margin: 0; }
+
+.play { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (max-width: 820px) { .play { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+/* Game frame */
+.device {
+  position: relative; background: var(--frame); border-radius: 30px; padding: 10px;
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,.45);
+  height: min(80vh, 800px); aspect-ratio: 9 / 19.5; max-width: 100%;
+}
+@media (max-width: 820px) { .device { width: 100%; aspect-ratio: auto; height: 84svh; border-radius: 22px; padding: 6px; } }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 22px; overflow: hidden; background: #2b3a33; }
+@media (max-width: 820px) { .screen { border-radius: 17px; } }
+#unity-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 24px; text-align: center; color: #eef3ef;
+  background: radial-gradient(120% 80% at 50% 30%, rgba(53,73,63,.97), rgba(27,42,36,.97));
+}
+.overlay strong { font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.15; }
+.overlay p { margin: 0; color: #c9d6ce; max-width: 30ch; }
+.bar { width: 70%; max-width: 220px; height: 10px; border-radius: 999px; background: rgba(255,255,255,.14); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: #f2b93f; border-radius: inherit; transition: width .2s; }
+.overlay.error p { color: #ffc2d2; }
+.overlay .jump { font-size: 17px; padding: 12px 24px; }
+.overlay button.ghost { background: transparent; color: #eef3ef; border: 1px solid rgba(255,255,255,.45); }
+/* Comprehension check over the game */
+.ask { justify-content: center; text-align: left; align-items: stretch; }
+.ask strong { text-align: center; }
+.ask .opts { display: flex; flex-direction: column; gap: 8px; }
+.ask .opts button {
+  background: rgba(255,255,255,.1); color: #f4f8f5; border: 1px solid rgba(255,255,255,.35); border-radius: 12px;
+  text-align: left; font-weight: 600; padding: 12px 14px; min-height: 48px;
+}
+.ask .opts button:hover { background: rgba(255,255,255,.18); }
+
+/* Side panel */
+.side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
+.steps li::marker { font-weight: 800; color: var(--accent-ink); }
+
+.run-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.now { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 460px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--sunken); border-radius: 10px; padding: 10px 12px; }
+.stat b { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.levels { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.lv { aspect-ratio: 1; border-radius: 5px; background: var(--sunken); display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.lv.won { background: var(--leaf); color: #fff; }
+.lv.lost { background: var(--plum); color: #fff; }
+.lv.now { outline: 2px solid var(--accent); outline-offset: 1px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.other { font-size: 14px; color: var(--muted); margin: 0; }
+
+/* Form */
+form { display: flex; flex-direction: column; gap: 18px; }
+fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+legend, label.q { font-weight: 650; padding: 0; margin-bottom: 8px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choices.col { flex-direction: column; align-items: stretch; }
+.choices input { position: absolute; opacity: 0; pointer-events: none; }
+.choices label {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 9px 16px; cursor: pointer;
+  font-weight: 500; user-select: none; min-height: 44px; display: inline-flex; align-items: center;
+}
+.choices.col label { border-radius: 12px; }
+.choices label:hover { border-color: var(--muted); }
+.choices input:checked + label { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.choices input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
+.choices input:disabled + label { opacity: .55; cursor: not-allowed; }
+.stars label { min-width: 48px; justify-content: center; font-weight: 800; font-size: 17px; }
+.hint { font-size: 14px; color: var(--muted); margin: 0; }
+textarea {
+  width: 100%; min-height: 74px; resize: vertical; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+textarea:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.send { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+button {
+  font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 11px 22px; cursor: pointer; min-height: 44px;
+  background: var(--ink); color: var(--bg);
+}
+button.secondary { background: var(--sunken); color: var(--ink); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.status { font-size: 14px; color: var(--muted); }
+.status.ok { color: var(--leaf); font-weight: 600; }
+.status.bad { color: var(--plum); font-weight: 600; }
+.notice { background: var(--sunken); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin: 0; }
+.jump {
+  display: inline-flex; align-items: center; gap: 6px; font-weight: 700; text-decoration: none; min-height: 44px;
+  background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 8px 16px; white-space: nowrap;
+}
+.jump:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+footer { color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+footer button { padding: 6px 14px; min-height: 40px; font-size: 14px; }
+
+/* Privacy notice + age gate */
+dialog {
+  width: min(640px, calc(100vw - 24px)); max-height: calc(100svh - 24px); padding: 0; border: 0; border-radius: 18px;
+  background: var(--surface); color: var(--ink); box-shadow: 0 24px 60px -20px rgba(0,0,0,.55);
+}
+dialog::backdrop { background: rgba(10, 16, 13, .72); }
+.dlg { padding: 22px 22px 20px; display: flex; flex-direction: column; gap: 14px; }
+.dlg h2 { font-size: 24px; }
+.dlg h3 { font-size: 16px; margin-top: 4px; }
+.dlg p, .dlg ul { margin: 0; }
+.dlg ul { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.dlg .todo { background: #ffe0b8; color: #4a2c14; padding: 1px 6px; border-radius: 4px; }
+.dlg .gate { display: flex; flex-direction: column; gap: 8px; }
+.dlg .gate label { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 48px; }
+.dlg .gate input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent-ink); flex: none; }
+.dlg .gate label:has(input:checked) { border-color: var(--accent-ink); background: var(--sunken); }
+.dlg .gate input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dlg .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+details summary { cursor: pointer; font-weight: 650; }
+details[open] summary { margin-bottom: 8px; }
+.mono { font-family: var(--font-mono); font-size: 14px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>MunchWorks! <span class="tag">playtest</span> <small>(working title)</small></h1>
+      <p class="sub">Two prototype puzzle games. Play both, then tell us which one works better.</p>
+    </div>
+    <a class="jump" href="#send-feedback">Answer the questions ↓</a>
+  </header>
+
+  <nav aria-label="Games in this playtest">
+    <div class="games" id="games"></div>
+    <p class="order" id="order"></p>
+  </nav>
+
+  <section class="play">
+    <div class="device">
+      <div class="screen">
+        <canvas id="unity-canvas" tabindex="-1" aria-label="Game"></canvas>
+        <div class="overlay" id="loader">
+          <strong id="loader-title">Loading</strong>
+          <div class="bar"><i id="bar"></i></div>
+          <p id="loader-text">Warming up the kitchen…</p>
+        </div>
+        <div class="overlay" id="done" hidden>
+          <strong id="done-title">All levels done!</strong>
+          <p id="done-text">Thank you for playing. How did it feel?</p>
+          <a class="jump" href="#send-feedback" id="done-send">Answer the questions ↓</a>
+          <a class="jump" href="#" id="done-other" hidden>Play the other game</a>
+          <button type="button" class="ghost" id="done-close">Keep playing</button>
+        </div>
+        <div class="overlay ask" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="ask-title">
+          <strong id="ask-title">Quick question</strong>
+          <p id="ask-text"></p>
+          <div class="opts" id="ask-opts"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h2 id="how-title">How to play</h2>
+        <ol class="steps" id="how"></ol>
+        <p class="hint">The instructions are short on purpose: we're testing whether the game explains itself.</p>
+      </div>
+
+      <div class="card" aria-live="polite">
+        <div class="run-head">
+          <h2>Your run</h2>
+          <span class="now" id="now">Game loading</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="s-reached">0</b><span>Highest level</span></div>
+          <div class="stat"><b id="s-wins">0</b><span>Levels won</span></div>
+          <div class="stat"><b id="s-fails">0</b><span>Fails</span></div>
+          <div class="stat"><b id="s-time">0m</b><span>Played</span></div>
+        </div>
+        <div class="levels" id="levels" aria-label="Levels won and failed"></div>
+        <div class="legend"><span><i style="background:var(--leaf)"></i>Won</span><span><i style="background:var(--plum)"></i>Failed, not won yet</span><span><i style="background:var(--sunken)"></i>Not played</span></div>
+        <p class="other" id="other-run"></p>
+      </div>
+
+      <div class="card" id="send-feedback">
+        <h2>Questions</h2>
+        <p class="notice" id="form-note" hidden></p>
+        <form id="feedback" novalidate>
+          <fieldset id="q-comprehension"></fieldset>
+          <fieldset id="q-playMore"></fieldset>
+          <fieldset id="q-preference"></fieldset>
+          <fieldset id="q-fun"></fieldset>
+          <fieldset id="q-difficulty"></fieldset>
+          <fieldset>
+            <label class="q" for="enjoyed">What did you enjoy?</label>
+            <textarea id="enjoyed" maxlength="1500"></textarea>
+          </fieldset>
+          <fieldset>
+            <label class="q" for="stuck">Where did you get stuck or confused?</label>
+            <textarea id="stuck" maxlength="1500"></textarea>
+          </fieldset>
+          <fieldset>
+            <label class="q" for="bugs">Bugs or anything that looked wrong</label>
+            <textarea id="bugs" maxlength="1500" placeholder="Which game and level, what you did, what happened"></textarea>
+          </fieldset>
+          <p class="hint">Please don't write your name, phone number, email or school in the answers.</p>
+          <div class="send">
+            <button type="submit" id="send">Send</button>
+            <span class="status" id="send-status"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>A playtest by IICT. Your progress stays in this browser; nothing is sent until you press Send.</span>
+    <button type="button" class="secondary" id="open-privacy">Privacy and age</button>
+    <button type="button" class="secondary" id="forget">Forget everything on this browser</button>
+  </footer>
+</div>
+
+<dialog id="privacy" aria-labelledby="privacy-title">
+  <form method="dialog" class="dlg" id="privacy-form">
+    <h2 id="privacy-title">Before you play</h2>
+    <p>This is a test of two unfinished puzzle games made by <strong>IICT</strong>. You can play without sending anything.
+      If you choose to send your answers, here is exactly what happens.</p>
+
+    <h3>What is sent, only when you press Send</h3>
+    <ul>
+      <li>Your answers to the questions on this page.</li>
+      <li>Your level stats for each game: highest level reached, levels won, and for each level the time played, fails, runs, retries and hints.</li>
+      <li>Your device type, read from your browser's user agent: for example <span class="mono" id="example-device">Android phone · Chrome · 393×873</span>.</li>
+      <li>A random tester ID made on this device (yours: <span class="mono" id="tester-id"></span>), the age option you choose below, and the game build.</li>
+    </ul>
+    <p><strong>Not sent:</strong> your name, email, phone number, location, contacts or anything else on your device.</p>
+
+    <h3>Where it goes and why</h3>
+    <p>To a Google Form owned by IICT. Google runs the form, so, like any website, it also sees your internet (IP) address.
+      We use the answers only to find out whether players understand the new game, how far they get and which game they
+      prefer, so we can improve the design. They are never used for ads or sold.</p>
+    <p>We keep them for <span id="retention"></span>, then delete them.</p>
+
+    <details>
+      <summary>Your rights (Digital Personal Data Protection Act, 2023)</summary>
+      <ul>
+        <li>You can change your mind at any time: open "Privacy and age" at the bottom of the page and choose "Just play".</li>
+        <li>To see, correct or delete what you sent, or to complain, write to <span id="contact"></span> with your tester ID.
+          If we don't resolve it, you can complain to the Data Protection Board of India.</li>
+        <li>"Forget everything on this browser" deletes your progress and stats from this browser.</li>
+      </ul>
+    </details>
+
+    <h3>Your age</h3>
+    <div class="gate" role="radiogroup" aria-label="Your age">
+      <label><input type="radio" name="gate" value="adult"><span><strong>I am 18 or older</strong> and I agree to send my answers and stats as described above.</span></label>
+      <label><input type="radio" name="gate" value="minor"><span><strong>I am under 18, and my school or a parent has given consent</strong> for me to take part in this playtest.</span></label>
+      <label><input type="radio" name="gate" value="none"><span><strong>Just play.</strong> Don't send anything. (Choose this if you are under 18 and nobody has given consent.)</span></label>
+    </div>
+    <div class="actions">
+      <button type="submit" id="privacy-ok" disabled>Continue</button>
+      <span class="status" id="privacy-status"></span>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// ---------------- Settings the owner fills in (Send stays disabled until all are set) ----------------
+// From create-form.gs (Execution log): replace this whole FORM with the logged block.
+const FORM = {
+  action: "",   // https://docs.google.com/forms/d/e/<id>/formResponse
+  fields: {},   // question key -> "entry.<id>"
+};
+// Shown in the privacy notice. contact: where testers write to see/correct/delete their answers.
+// retention: how long answers are kept, e.g. "6 months after the playtest ends" (owner decides).
+const OWNER = { contact: "", retention: "" };
+// Stamped by publish.sh per game folder (cache-busting + the "Build" answer). Empty when run locally.
+const BUILD_VERSION = "6bb664ad79";
+
+// QUESTIONS-BEGIN (identical in index.html and create-form.gs; check-questions.mjs checks it)
+const QUESTIONS = [
+  // Answered by the tester on the page.
+  { key: "comprehension", title: "What does the order of the tiles do?", type: "choice",
+    ask: "In Recipe Remix, what does the order of the tiles do?",
+    choices: [
+      "The machines follow the tiles in order, so a different order makes different food",
+      "Nothing: only which tiles I pick matters",
+      "It sets how fast the food cooks",
+      "I'm not sure",
+    ] },
+  { key: "playMore", title: "Would you play more?", type: "choice",
+    choices: ["Yes, right now", "Maybe later", "No"] },
+  { key: "preference", title: "Which game did you prefer?", type: "choice",
+    choices: ["Recipe Remix", "Sort game", "No preference", "I only played one"] },
+  { key: "fun", title: "Fun (1-5)", type: "scale", ask: "How fun was it?", low: "I'd stop now", high: "I'd keep playing" },
+  { key: "difficulty", title: "Difficulty", type: "choice", ask: "Difficulty so far", choices: ["Too easy", "About right", "Too hard"] },
+  { key: "enjoyed", title: "What did you enjoy?", type: "paragraph" },
+  { key: "stuck", title: "Where did you get stuck or confused?", type: "paragraph" },
+  { key: "bugs", title: "Bugs", type: "paragraph" },
+  // Filled in by the page.
+  { key: "comprehensionAfter", title: "Comprehension answered after level", type: "text" },
+  { key: "consent", title: "Consent basis", type: "choice",
+    choices: ["18 or older", "Under 18 with school or parent consent"] },
+  { key: "sessionType", title: "Session type", type: "choice", choices: ["Remote", "Supervised"] },
+  { key: "sentFrom", title: "Sent from", type: "choice", choices: ["Recipe Remix", "Sort game"] },
+  { key: "firstGame", title: "Played first", type: "choice", choices: ["Recipe Remix", "Sort game"] },
+  { key: "rrReached", title: "Recipe Remix: highest level reached", type: "text" },
+  { key: "rrWon", title: "Recipe Remix: levels won", type: "text" },
+  { key: "rrMinutes", title: "Recipe Remix: minutes played", type: "text" },
+  { key: "rrLevels", title: "Recipe Remix: per level", type: "paragraph" },
+  { key: "sortReached", title: "Sort game: highest level reached", type: "text" },
+  { key: "sortWon", title: "Sort game: levels won", type: "text" },
+  { key: "sortMinutes", title: "Sort game: minutes played", type: "text" },
+  { key: "sortLevels", title: "Sort game: per level", type: "paragraph" },
+  { key: "build", title: "Build", type: "text" },
+  { key: "device", title: "Device", type: "text" },
+  { key: "tester", title: "Tester ID", type: "text" },
+];
+// QUESTIONS-END
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const Q = Object.fromEntries(QUESTIONS.map((q) => [q.key, q]));
+
+  // ---------------- which game this page runs ----------------
+  // Root folder = Recipe Remix (the MunchWorks build that passed QA), sort/ = archived sort prototype.
+  // ?game=sort|recipe overrides (local testing).
+  const params = new URLSearchParams(location.search);
+  const inSortFolder = /\/sort\/(index\.html)?$/.test(location.pathname);
+  const GAME = params.get("game") === "sort" || (inSortFolder && params.get("game") !== "recipe") ? "sort" : "recipe";
+  const GAMES = {
+    recipe: {
+      name: "Recipe Remix", levels: 10, loading: "Warming up the kitchen…",
+      how: ["Look at the lunch the customer wants.", "Follow Chef Cat's tips to make it, then press Play.",
+            "Play as far as you like (there are 10 levels), then answer the questions."],
+    },
+    sort: {
+      name: "Sort game", levels: 30, loading: "Packing the lunchboxes…",
+      how: ["Follow Chef Cat's tips to pack the lunchboxes.",
+            "Play for about as long as you played the other game, then answer the questions."],
+    },
+  };
+  const G = GAMES[GAME];
+  const OTHER = GAME === "recipe" ? "sort" : "recipe";
+  const BUILD_DIR = GAME === "sort" && !inSortFolder ? "sort/Build/" : "Build/";
+  const otherHref = () => {
+    if (params.has("game") || location.protocol === "file:") {
+      const p = new URLSearchParams(location.search); p.set("game", OTHER); return "?" + p.toString();
+    }
+    return GAME === "sort" ? "../" : "sort/";
+  };
+  // Ask "what does the order of the tiles do?" after this Recipe Remix level is won. Level 1 has one
+  // tile; level 3 is the first two-step recipe where order matters (Breakfast Lab design map).
+  const ASK_AFTER_LEVEL = 3;
+
+  // ---------------- this tester's data, kept in this browser ----------------
+  const STORE = "munchworks-playtest";
+  const blankGame = () => ({ levels: {}, reached: 0, seconds: 0, firstAt: 0 });
+  const run = {
+    v: 1, tester: null, gate: null, gateAt: 0, session: "Remote",
+    games: { recipe: blankGame(), sort: blankGame() },
+    comp: { answer: "", after: 0 }, draft: {}, sent: 0,
+  };
+  const load = () => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch { return {}; } };
+  const saved = load();
+  Object.assign(run, saved);
+  run.games = Object.assign({ recipe: blankGame(), sort: blankGame() }, saved.games || {});
+  if (!run.tester) run.tester = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)).replace(/-/g, "").slice(0, 10);
+  if (params.get("session") === "supervised") run.session = "Supervised";
+  // Both games share this origin's localStorage: write only this game's stats, keep the other's.
+  let wiping = false;   // "Forget everything": nothing may write back while the page unloads
+  const save = () => {
+    if (wiping) return;
+    try {
+      const cur = load();
+      const games = Object.assign({}, cur.games, { [GAME]: run.games[GAME] });
+      localStorage.setItem(STORE, JSON.stringify(Object.assign({}, run, { games })));
+    } catch {}
+  };
+  save();
+  window.addEventListener("storage", (e) => {
+    if (e.key !== STORE || !e.newValue) return;
+    try {
+      const o = JSON.parse(e.newValue);
+      if (o.games && o.games[OTHER]) run.games[OTHER] = o.games[OTHER];
+      if (o.comp) run.comp = o.comp;
+      if (o.gate !== undefined) run.gate = o.gate;
+    } catch {}
+    render(); renderForm(); updateSend();
+  });
+
+  // Suggested order alternates by tester ID so half the testers start with each game.
+  const firstAssigned = parseInt(run.tester.slice(0, 2), 16) % 2 ? "sort" : "recipe";
+
+  const g = run.games[GAME];
+  const rec = (n) => g.levels[n] ??= GAME === "recipe"
+    ? { starts: 0, won: 0, fails: 0, kinds: {}, runs: 0, retries: 0, hints: 0, seconds: 0, bestTiles: null, par: null, stars: 0 }
+    : { starts: 0, won: 0, fails: 0, kinds: {}, seconds: 0 };
+
+  // ---------------- game events (Plugins/WebGL/LunchboxBridge.jslib "lunchbox" DOM event) ----------------
+  let active = null;    // level whose time is being counted
+  let current = null;   // level last started
+  let paused = true;    // privacy dialog / question open
+  window.addEventListener("lunchbox", (e) => {
+    const ev = e.detail || {};
+    const n = Number(ev.level) || 0;
+    switch (ev.type) {
+      case "puzzle_start": case "level_start": {
+        if (!n) break;
+        current = active = n;
+        rec(n).starts++;
+        const firstStart = !g.reached;
+        g.reached = Math.max(g.reached, n);
+        if (!g.firstAt) g.firstAt = Date.now();
+        if (firstStart) renderForm();   // unlocks comprehension / updates the preference hint
+        break;
+      }
+      case "puzzle_run": if (n) rec(n).runs++; break;
+      case "puzzle_retry": if (n) rec(n).retries++; break;
+      case "tutorial_hint_used": if (n) rec(n).hints++; break;
+      case "puzzle_fail_reason": {
+        if (!n) break;
+        const r = rec(n); r.fails++;
+        const k = String(ev.kind || "other").toLowerCase(); r.kinds[k] = (r.kinds[k] || 0) + 1;
+        break;
+      }
+      case "puzzle_win": {
+        if (!n) break;
+        const r = rec(n); r.won++;
+        if (ev.tiles != null) r.bestTiles = r.bestTiles == null ? ev.tiles : Math.min(r.bestTiles, ev.tiles);
+        if (ev.par != null) r.par = ev.par;
+        r.stars = Math.max(r.stars || 0, Number(ev.stars) || 0);
+        active = null;
+        afterWin(n);
+        break;
+      }
+      case "level_end": {   // sort prototype: result won | lost | timeout
+        if (!n) break;
+        const r = rec(n);
+        if (ev.result === "won") { r.won++; active = null; afterWin(n); }
+        else { r.fails++; const k = String(ev.result || "lost"); r.kinds[k] = (r.kinds[k] || 0) + 1; }
+        break;
+      }
+      case "screen_view": active = null; break;   // back on Home / Levels / Album
+      default: return;
+    }
+    save(); render();
+  });
+
+  // Time per level: counted once a second while the page is visible, a level is open and no dialog is up.
+  setInterval(() => {
+    if (!active || paused || document.visibilityState !== "visible") return;
+    rec(active).seconds++; g.seconds++;
+    if (g.seconds % 5 === 0) save();
+    if (g.seconds % 15 === 0) render();
+  }, 1000);
+  document.addEventListener("visibilitychange", save);
+  window.addEventListener("pagehide", save);
+
+  function afterWin(n) {
+    if (GAME === "recipe" && n >= ASK_AFTER_LEVEL && !run.comp.answer) showAsk(n);
+    else if (n >= G.levels) showDone();
+  }
+
+  // ---------------- rendering ----------------
+  const totals = (game) => {
+    let won = 0, fails = 0;
+    for (const r of Object.values(game.levels)) { won += r.won > 0 ? 1 : 0; fails += r.fails || 0; }
+    return { won, fails };
+  };
+  const mins = (s) => { const m = Math.floor(s / 60); return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + (m % 60) + "m"; };
+
+  function renderNav() {
+    const order = firstAssigned === "recipe" ? ["recipe", "sort"] : ["sort", "recipe"];
+    $("games").innerHTML = "";
+    order.forEach((key, i) => {
+      const a = document.createElement("a");
+      a.href = key === GAME ? "#" : otherHref();
+      if (key === GAME) a.setAttribute("aria-current", "page");
+      a.innerHTML = `<span class="num">Game ${i + 1}</span> `;
+      a.append(GAMES[key].name);
+      $("games").appendChild(a);
+    });
+    $("order").textContent = `Please play ${GAMES[order[0]].name} first, then ${GAMES[order[1]].name}. ` +
+      "Play each for about the same time (10 to 15 minutes), then answer the questions on either page.";
+  }
+
+  for (let i = 1; i <= G.levels; i++) {
+    const c = document.createElement("div"); c.className = "lv"; c.textContent = i; $("levels").appendChild(c);
+  }
+  document.title = `${G.name}: MunchWorks! Playtest`;
+  $("unity-canvas").setAttribute("aria-label", G.name + " game");
+  $("loader-title").textContent = G.name;
+  $("loader-text").textContent = G.loading;
+  $("how-title").textContent = "How to play " + G.name;
+  for (const s of G.how) { const li = document.createElement("li"); li.textContent = s; $("how").appendChild(li); }
+
+  function render() {
+    const t = totals(g);
+    $("s-reached").textContent = g.reached;
+    $("s-wins").textContent = t.won;
+    $("s-fails").textContent = t.fails;
+    $("s-time").textContent = mins(g.seconds);
+    $("now").textContent = current ? `${G.name} · level ${current}` : G.name;
+    const cells = $("levels").children;
+    for (let i = 1; i <= G.levels; i++) {
+      const r = g.levels[i];
+      cells[i - 1].className = "lv" + (r && r.won ? " won" : r && r.fails ? " lost" : "") + (i === current ? " now" : "");
+    }
+    const o = run.games[OTHER];
+    $("other-run").textContent = o.reached
+      ? `${GAMES[OTHER].name}: reached level ${o.reached}, ${totals(o).won} won, ${mins(o.seconds)} played.`
+      : `${GAMES[OTHER].name}: not played yet.`;
+  }
+
+  // ---------------- questions ----------------
+  function choiceField(key, opts = {}) {
+    const q = Q[key], box = $("q-" + key);
+    box.innerHTML = "";
+    const lg = document.createElement("legend"); lg.textContent = q.ask || q.title; box.appendChild(lg);
+    const wrap = document.createElement("div");
+    wrap.className = "choices" + (q.type === "scale" ? " stars" : "") + (opts.column ? " col" : "");
+    const values = q.type === "scale" ? ["1", "2", "3", "4", "5"] : (opts.order || q.choices);
+    values.forEach((v, i) => {
+      const id = `${key}-${i}`;
+      const input = document.createElement("input");
+      Object.assign(input, { type: "radio", name: key, id, value: v, checked: run.draft[key] === v, disabled: !!opts.locked });
+      input.addEventListener("change", () => { run.draft[key] = v; save(); });
+      const label = document.createElement("label"); label.htmlFor = id; label.textContent = v;
+      wrap.append(input, label);
+    });
+    box.appendChild(wrap);
+    if (q.type === "scale") { const h = document.createElement("p"); h.className = "hint"; h.textContent = `1 = ${q.low}, 5 = ${q.high}.`; box.appendChild(h); }
+    if (opts.hint) { const h = document.createElement("p"); h.className = "hint"; h.textContent = opts.hint; box.appendChild(h); }
+  }
+
+  // The comprehension choices are shuffled once per tester ("I'm not sure" stays last) so position
+  // doesn't steer the answer; the values sent are the Form's own.
+  const compOrder = (() => {
+    const c = Q.comprehension.choices, body = c.slice(0, -1);
+    let seed = parseInt(run.tester.slice(2, 8), 16) || 1;
+    for (let i = body.length - 1; i > 0; i--) { seed = (seed * 1103515245 + 12345) % 2147483648; const j = seed % (i + 1); [body[i], body[j]] = [body[j], body[i]]; }
+    return body.concat(c[c.length - 1]);
+  })();
+
+  function renderForm() {
+    // Comprehension: only once Recipe Remix has been played, and locked once answered (it measures
+    // first-session understanding, so later play must not change it).
+    const played = run.games.recipe.reached > 0;
+    if (run.comp.answer) {
+      run.draft.comprehension = run.comp.answer;
+      choiceField("comprehension", { column: true, order: compOrder, locked: true, hint: "Thanks, this one is saved." });
+    } else if (played) {
+      choiceField("comprehension", { column: true, order: compOrder });
+    } else {
+      $("q-comprehension").innerHTML = `<legend>${Q.comprehension.ask}</legend><p class="hint">Play a few levels of Recipe Remix first.</p>`;
+    }
+    choiceField("playMore");
+    const both = run.games.recipe.reached > 0 && run.games.sort.reached > 0;
+    choiceField("preference", { hint: both ? "You've played both games." : "You've played one game so far. Try the other one first if you can." });
+    choiceField("fun", {});
+    choiceField("difficulty");
+    for (const k of ["enjoyed", "stuck", "bugs"]) $(k).value = run.draft[k] || "";
+  }
+  for (const k of ["enjoyed", "stuck", "bugs"]) $(k).addEventListener("input", () => { run.draft[k] = $(k).value; save(); });
+
+  // ---------------- comprehension check over the game ----------------
+  function showAsk(level) {
+    paused = true;
+    $("ask-text").textContent = Q.comprehension.ask;
+    const opts = $("ask-opts"); opts.innerHTML = "";
+    for (const v of compOrder) {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = v;
+      b.addEventListener("click", () => {
+        run.comp = { answer: v, after: level }; run.draft.comprehension = v; save();
+        $("ask").hidden = true; paused = false; renderForm();
+        if (level >= G.levels) showDone();
+      });
+      opts.appendChild(b);
+    }
+    $("ask").hidden = false;
+    opts.firstChild.focus();
+  }
+
+  function showDone() {
+    $("done-title").textContent = `All ${G.levels} levels done!`;
+    const other = run.games[OTHER].reached > 0;
+    $("done-text").textContent = other ? "Thank you for playing both games. Now tell us what you think."
+      : `Thank you! Please play ${GAMES[OTHER].name} too, then answer the questions.`;
+    $("done-other").hidden = other;
+    $("done-other").href = otherHref();
+    $("done").hidden = false;
+  }
+  $("done-close").addEventListener("click", () => { $("done").hidden = true; });
+  $("done-send").addEventListener("click", () => { $("done").hidden = true; });
+
+  // ---------------- privacy notice + age gate ----------------
+  const configured = !!(FORM.action && QUESTIONS.every((q) => FORM.fields[q.key]) && OWNER.contact && OWNER.retention);
+  const todo = (text) => `<span class="todo">${text}</span>`;
+  $("tester-id").textContent = run.tester;
+  $("example-device").textContent = deviceLabel();
+  $("retention").innerHTML = OWNER.retention ? "" : todo("OWNER: retention period");
+  if (OWNER.retention) $("retention").textContent = OWNER.retention;
+  $("contact").innerHTML = OWNER.contact ? "" : todo("OWNER: contact email");
+  if (OWNER.contact) $("contact").textContent = OWNER.contact;
+
+  const dlg = $("privacy");
+  const gateInputs = [...dlg.querySelectorAll('input[name="gate"]')];
+  gateInputs.forEach((i) => i.addEventListener("change", () => { $("privacy-ok").disabled = false; }));
+  function openPrivacy() {
+    paused = true;
+    gateInputs.forEach((i) => { i.checked = i.value === run.gate; });
+    $("privacy-ok").disabled = !run.gate;
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+  dlg.addEventListener("cancel", (e) => { if (!run.gate) e.preventDefault(); });   // must choose once
+  // Continue applies the choice (on submit, not on the dialog's close event, which some browsers
+  // don't fire reliably when the dialog is reopened).
+  $("privacy-form").addEventListener("submit", () => {
+    const pick = gateInputs.find((i) => i.checked);
+    if (pick) { run.gate = pick.value; run.gateAt = Date.now(); save(); }
+    paused = !$("ask").hidden;
+    updateSend();
+  });
+  dlg.addEventListener("close", () => { if (run.gate) { paused = !$("ask").hidden; updateSend(); } });
+  $("open-privacy").addEventListener("click", openPrivacy);
+
+  $("forget").addEventListener("click", () => {
+    if (!confirm("Delete your progress, stats, answers and tester ID from this browser? This can't be undone.")) return;
+    wiping = true;
+    try { localStorage.removeItem(STORE); localStorage.removeItem("lunchbox-playtest-run"); sessionStorage.setItem("munchworks-wipe", "1"); } catch {}
+    location.reload();
+  });
+
+  function updateSend() {
+    const note = $("form-note"), send = $("send");
+    let msg = "";
+    if (!configured) msg = "Sending isn't switched on yet for this playtest. You can still play.";
+    else if (run.gate !== "adult" && run.gate !== "minor") msg = "You chose \"Just play\", so nothing will be sent. To send your answers, open \"Privacy and age\" below.";
+    send.disabled = !!msg;
+    note.textContent = msg; note.hidden = !msg;
+    if (!msg) { $("send-status").className = "status"; $("send-status").textContent = "Your answers and level stats are sent. No name or email."; }
+  }
+
+  // ---------------- sending ----------------
+  function deviceLabel() {
+    const ua = navigator.userAgent;
+    const os = /Android/i.test(ua) ? "Android" : /iPhone|iPad|iPod/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows"
+      : /Mac OS X/i.test(ua) ? "macOS" : /CrOS/i.test(ua) ? "ChromeOS" : /Linux/i.test(ua) ? "Linux" : "Other";
+    const br = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /SamsungBrowser\//.test(ua) ? "Samsung Internet"
+      : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
+    const kind = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobi/i.test(ua)) ? "tablet" : /Mobi|iPhone/i.test(ua) ? "phone" : "computer";
+    return `${os} ${kind} · ${br} · ${screen.width}×${screen.height}`;
+  }
+
+  // One line per level, parsed by create-form.gs (levelTable): keep the "n: starts S, won W, fails F" head.
+  function levelLines(game, key) {
+    return Object.keys(game.levels).map(Number).sort((a, b) => a - b).map((n) => {
+      const r = game.levels[n];
+      const kinds = Object.entries(r.kinds || {}).map(([k, c]) => `${k} ${c}`).join(", ");
+      const parts = [`starts ${r.starts}`, `won ${r.won}`, `fails ${r.fails}${kinds ? ` (${kinds})` : ""}`];
+      if (key === "recipe") parts.push(`runs ${r.runs}`, `retries ${r.retries}`, `hints ${r.hints}`);
+      parts.push(`${r.seconds}s`);
+      if (key === "recipe" && r.bestTiles != null) parts.push(`best ${r.bestTiles} tiles (par ${r.par ?? "?"})`, `${r.stars} stars`);
+      return `${n}: ${parts.join(", ")}`;
+    }).join("\n");
+  }
+
+  function playedFirst() {
+    const a = run.games.recipe.firstAt, b = run.games.sort.firstAt;
+    if (!a && !b) return "";
+    return !b || (a && a <= b) ? Q.firstGame.choices[0] : Q.firstGame.choices[1];
+  }
+
+  $("feedback").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status = $("send-status");
+    if (!configured || (run.gate !== "adult" && run.gate !== "minor")) { updateSend(); return; }
+    const pick = (name) => (e.target.querySelector(`input[name="${name}"]:checked`) || {}).value || "";
+    const rr = run.games.recipe, so = run.games.sort;
+    const answers = {
+      comprehension: run.comp.answer || pick("comprehension"),
+      playMore: pick("playMore"), preference: pick("preference"), fun: pick("fun"), difficulty: pick("difficulty"),
+      enjoyed: $("enjoyed").value.trim(), stuck: $("stuck").value.trim(), bugs: $("bugs").value.trim(),
+      comprehensionAfter: run.comp.answer ? String(run.comp.after) : pick("comprehension") ? String(rr.reached) : "",
+      consent: run.gate === "adult" ? Q.consent.choices[0] : Q.consent.choices[1],
+      sessionType: run.session === "Supervised" ? "Supervised" : "Remote",
+      sentFrom: GAME === "recipe" ? Q.sentFrom.choices[0] : Q.sentFrom.choices[1],
+      firstGame: playedFirst(),
+      rrReached: String(rr.reached), rrWon: String(totals(rr).won), rrMinutes: String(Math.round(rr.seconds / 6) / 10), rrLevels: levelLines(rr, "recipe"),
+      sortReached: String(so.reached), sortWon: String(totals(so).won), sortMinutes: String(Math.round(so.seconds / 6) / 10), sortLevels: levelLines(so, "sort"),
+      build: `${GAME}-${BUILD_VERSION || "local"}`, device: deviceLabel(), tester: run.tester,
+    };
+    const asked = ["comprehension", "playMore", "preference", "fun", "difficulty", "enjoyed", "stuck", "bugs"];
+    if (!asked.some((k) => answers[k])) { status.className = "status bad"; status.textContent = "Answer at least one question first."; return; }
+    // A choice that isn't one of the Form's choices makes Google drop the whole answer: send only real choices.
+    for (const q of QUESTIONS) if (q.type === "choice" && answers[q.key] && !q.choices.includes(answers[q.key])) answers[q.key] = "";
+    // Comprehension is first-session only: once sent, it stays locked.
+    if (answers.comprehension && !run.comp.answer) run.comp = { answer: answers.comprehension, after: rr.reached };
+
+    const data = new URLSearchParams();
+    for (const q of QUESTIONS) if (answers[q.key]) data.append(FORM.fields[q.key], answers[q.key]);
+    $("send").disabled = true; status.className = "status"; status.textContent = "Sending…";
+    try {
+      // Google Forms doesn't let another site read the reply; a completed request means it arrived.
+      await fetch(FORM.action, { method: "POST", mode: "no-cors", body: data });
+      run.sent++;
+      for (const k of ["enjoyed", "stuck", "bugs"]) run.draft[k] = "";
+      save(); renderForm();
+      status.className = "status ok"; status.textContent = `Sent. Thank you! (${run.sent} sent from this browser; your stats update each time you send.)`;
+    } catch {
+      status.className = "status bad"; status.textContent = "Couldn't send. Check your connection and try again.";
+    }
+    $("send").disabled = false;
+  });
+
+  // ---------------- game ----------------
+  async function startGame() {
+    // "Forget everything" also deletes the games' saved progress (Unity keeps it in IndexedDB "/idbfs").
+    try {
+      if (sessionStorage.getItem("munchworks-wipe")) {
+        sessionStorage.removeItem("munchworks-wipe");
+        await new Promise((ok) => { const r = indexedDB.deleteDatabase("/idbfs"); r.onsuccess = r.onerror = r.onblocked = ok; });
+      }
+    } catch {}
+    const canvas = $("unity-canvas"), loader = $("loader");
+    const fail = (msg) => { loader.classList.add("error"); loader.hidden = false; $("loader-text").textContent = msg; };
+    const v = BUILD_VERSION ? "?v=" + BUILD_VERSION : "";
+    const script = document.createElement("script");
+    script.src = BUILD_DIR + "Web.loader.js" + v;
+    script.onerror = () => fail("The game files didn't load. Reload the page to try again.");
+    script.onload = () => {
+      createUnityInstance(canvas, {
+        dataUrl: BUILD_DIR + "Web.data.unityweb" + v,
+        frameworkUrl: BUILD_DIR + "Web.framework.js.unityweb" + v,
+        codeUrl: BUILD_DIR + "Web.wasm.unityweb" + v,
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "IICT", productName: G.name, productVersion: BUILD_VERSION || "local",
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        showBanner: (msg, type) => { if (type === "error") console.error("[unity]", msg); else console.warn("[unity]", msg); },
+      }, (p) => { $("bar").style.width = Math.round(p * 100) + "%"; })
+        .then(() => { loader.hidden = true; })
+        .catch((err) => { console.error(err); fail("This browser couldn't start the game. Try Chrome, Edge or Safari on a recent phone or computer."); });
+    };
+    document.body.appendChild(script);
+  }
+
+  renderNav();
+  render();
+  renderForm();
+  updateSend();
+  if (!run.gate) openPrivacy(); else paused = false;
+  startGame();
+})();
+</script>
+</body>
+</html>
