@@ -82,9 +82,9 @@ h2 { font-size: 21px; font-weight: 700; }
 .device {
   position: relative; background: var(--frame); border-radius: 30px; padding: 10px;
   box-shadow: 0 18px 40px -18px rgba(0,0,0,.45);
-  height: min(80vh, 800px); aspect-ratio: 9 / 19.5; max-width: 100%;
+  width: 360px; height: 640px; max-width: 100%; justify-self: center;   /* sized by fitDevice() */
 }
-@media (max-width: 820px) { .device { width: 100%; aspect-ratio: auto; height: 84svh; border-radius: 22px; padding: 6px; } }
+@media (max-width: 820px) { .device { border-radius: 22px; padding: 6px; } }
 .screen { position: relative; width: 100%; height: 100%; border-radius: 22px; overflow: hidden; background: #2b3a33; }
 @media (max-width: 820px) { .screen { border-radius: 17px; } }
 #unity-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
@@ -835,6 +835,27 @@ const QUESTIONS = [
     };
     document.body.appendChild(script);
   }
+
+  // ---------------- game frame: always a portrait phone screen ----------------
+  // The game is laid out for portrait phones (1080x1920 reference; the layout audit covers 9:16 to 9:20),
+  // so the screen keeps a height:width ratio between 16:9 and 20:9 and is as large as the window allows.
+  const device = document.querySelector(".device");
+  let fitW = 0, fitH = 0;
+  function fitDevice() {
+    const narrow = matchMedia("(max-width: 820px)").matches;
+    const pad = 2 * (parseFloat(getComputedStyle(device).paddingLeft) || 0);
+    const availW = (narrow ? device.parentElement.clientWidth : Math.min(560, innerWidth - 64)) - pad;
+    const availH = Math.max(480, narrow ? innerHeight * 0.88 : Math.min(innerHeight - 48, 960)) - pad;
+    let w, h;
+    if (availH / availW >= 16 / 9) { w = availW; h = Math.min(availH, w * 20 / 9); }
+    else { h = availH; w = h * 9 / 16; }
+    device.style.width = Math.floor(w + pad) + "px";
+    device.style.height = Math.floor(h + pad) + "px";
+    fitW = innerWidth; fitH = innerHeight;
+  }
+  fitDevice();
+  // Phones resize the window a little when the address bar hides; only refit on real changes.
+  addEventListener("resize", () => { if (innerWidth !== fitW || Math.abs(innerHeight - fitH) > 120) fitDevice(); });
 
   renderNav();
   render();
