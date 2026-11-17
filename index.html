@@ -354,7 +354,7 @@ const FORM = {
 // retention: how long answers are kept, e.g. "6 months after the playtest ends" (owner decides).
 const OWNER = { contact: "", retention: "" };
 // Stamped by publish.sh per game folder (cache-busting + the "Build" answer). Empty when run locally.
-const BUILD_VERSION = "f875275596";
+const BUILD_VERSION = "a7e89e6317";
 
 // QUESTIONS-BEGIN (identical in index.html and create-form.gs; check-questions.mjs checks it)
 const QUESTIONS = [
@@ -409,9 +409,9 @@ const QUESTIONS = [
   const GAME = params.get("game") === "sort" || (inSortFolder && params.get("game") !== "recipe") ? "sort" : "recipe";
   const GAMES = {
     recipe: {
-      name: "Recipe Remix", levels: 10, loading: "Warming up the kitchen…",
+      name: "Recipe Remix", levels: 30, loading: "Warming up the kitchen…",
       how: ["Look at the lunch the customer wants.", "Follow Chef Cat's tips to make it, then press Play.",
-            "Play as far as you like (there are 10 levels), then answer the questions."],
+            "Play as far as you like (there are 30 levels in three chapters), then answer the questions."],
     },
     sort: {
       name: "Sort game", levels: 30, loading: "Packing the lunchboxes…",
@@ -478,11 +478,11 @@ const QUESTIONS = [
     ? { starts: 0, won: 0, fails: 0, kinds: {}, runs: 0, retries: 0, hints: 0, seconds: 0, bestTiles: null, par: null, stars: 0 }
     : { starts: 0, won: 0, fails: 0, kinds: {}, seconds: 0 };
 
-  // ---------------- game events (Plugins/WebGL/LunchboxBridge.jslib "lunchbox" DOM event) ----------------
+  // ---------------- game events (Plugins/WebGL/MunchWorksBridge.jslib "munchworks" DOM event; "lunchbox" from builds before the rename) ----------------
   let active = null;    // level whose time is being counted
   let current = null;   // level last started
   let paused = true;    // privacy dialog / question open
-  window.addEventListener("lunchbox", (e) => {
+  const onGameEvent = (e) => {
     const ev = e.detail || {};
     const n = Number(ev.level) || 0;
     switch (ev.type) {
@@ -526,7 +526,9 @@ const QUESTIONS = [
       default: return;
     }
     save(); render();
-  });
+  };
+  window.addEventListener("munchworks", onGameEvent);
+  window.addEventListener("lunchbox", onGameEvent);
 
   // Time per level: counted once a second while the page is visible, a level is open and no dialog is up.
   setInterval(() => {
