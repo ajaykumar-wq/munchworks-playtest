@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>MunchWorks! Playtest</title>
-<meta name="description" content="Play two prototype puzzle games by IICT in your browser and tell us which works better.">
+<meta name="description" content="Play MunchWorks!, a prototype puzzle game by IICT, in your browser and tell us what you think.">
 <meta name="robots" content="noindex">
 <style>
 /* MunchWorks! public playtest (SV-1, design v1.2 D.3). One page, two games: this folder runs
@@ -281,7 +281,7 @@ details[open] summary { margin-bottom: 8px; }
           </fieldset>
           <fieldset>
             <label class="q" for="bugs">Bugs or anything that looked wrong</label>
-            <textarea id="bugs" maxlength="1500" placeholder="Which game and level, what you did, what happened"></textarea>
+            <textarea id="bugs" maxlength="1500" placeholder="Which level, what you did, what happened"></textarea>
           </fieldset>
           <p class="hint">Please don't write your name, phone number, email or school in the answers.</p>
           <div class="send">
@@ -303,13 +303,13 @@ details[open] summary { margin-bottom: 8px; }
 <dialog id="privacy" aria-labelledby="privacy-title">
   <form method="dialog" class="dlg" id="privacy-form">
     <h2 id="privacy-title">Before you play</h2>
-    <p>This is a test of two unfinished puzzle games made by <strong>IICT</strong>. You can play without sending anything.
+    <p>This is a test of an unfinished puzzle game, MunchWorks!, made by <strong>IICT</strong>. You can play without sending anything.
       If you choose to send your answers, here is exactly what happens.</p>
 
     <h3>What is sent, only when you press Send</h3>
     <ul>
       <li>Your answers to the questions on this page.</li>
-      <li>Your level stats for each game: highest level reached, levels won, and for each level the time played, fails, runs, retries and hints.</li>
+      <li>Your level stats: highest level reached, levels won, and for each level the time played, fails, runs, retries and hints.</li>
       <li>Your device type, read from your browser's user agent: for example <span class="mono" id="example-device">Android phone · Chrome · 393×873</span>.</li>
       <li>A random tester ID made on this device (yours: <span class="mono" id="tester-id"></span>), the age option you choose below, and the game build.</li>
     </ul>
@@ -317,8 +317,8 @@ details[open] summary { margin-bottom: 8px; }
 
     <h3>Where it goes and why</h3>
     <p>To a Google Form owned by IICT. Google runs the form, so, like any website, it also sees your internet (IP) address.
-      We use the answers only to find out whether players understand the new game, how far they get and which game they
-      prefer, so we can improve the design. They are never used for ads or sold.</p>
+      We use the answers only to find out whether players understand the game, how far they get and how much
+      they enjoy it, so we can improve the design. They are never used for ads or sold.</p>
     <p>We keep them for <span id="retention"></span>, then delete them.</p>
 
     <details>
