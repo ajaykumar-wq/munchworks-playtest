@@ -165,6 +165,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .status { font-size: 14px; color: var(--muted); }
 .status.ok { color: var(--leaf); font-weight: 600; }
 .status.bad { color: var(--plum); font-weight: 600; }
+.status.off { flex: 1 1 220px; color: var(--ink); }
 .notice { background: var(--sunken); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin: 0; }
 .jump {
   display: inline-flex; align-items: center; gap: 6px; font-weight: 700; text-decoration: none; min-height: 44px;
@@ -285,7 +286,7 @@ details[open] summary { margin-bottom: 8px; }
           <p class="hint">Please don't write your name, phone number, email or school in the answers.</p>
           <div class="send">
             <button type="submit" id="send">Send</button>
-            <span class="status" id="send-status"></span>
+            <span class="status" id="send-status" aria-live="polite"></span>
           </div>
         </form>
       </div>
@@ -730,7 +731,10 @@ const QUESTIONS = [
     else if (run.gate !== "adult" && run.gate !== "minor") msg = "You chose \"Just play\", so nothing will be sent. To send your answers, open \"Privacy and age\" below.";
     send.disabled = !!msg;
     note.textContent = msg; note.hidden = !msg;
-    if (!msg) { $("send-status").className = "status"; $("send-status").textContent = "Your answers and level stats are sent. No name or email."; }
+    // Say why Send is grey right next to it too: the note at the top of the card is out of sight down here.
+    const status = $("send-status");
+    status.className = msg ? "status off" : "status";
+    status.textContent = msg || "Your answers and level stats are sent. No name or email.";
   }
 
   // ---------------- sending ----------------
